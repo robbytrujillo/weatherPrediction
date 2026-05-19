@@ -2,4 +2,4 @@
 
 <h2>WeatherPrediction</h2>
 
-<img src="assets/images/logo.png" />
+<img src="assets/images/wheaterprediction.png" />
