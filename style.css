@@ -126,3 +126,20 @@ button:hover {
     padding: 40px;
   }
 }
+
+.load-more-btn {
+  width: 100%;
+  margin-top: 15px;
+  padding: 12px;
+  border: none;
+  border-radius: 30px;
+  background: #2f3542;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.load-more-btn:hover {
+  background: #57606f;
+}

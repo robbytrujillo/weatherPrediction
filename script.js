@@ -1,4 +1,5 @@
 let currentWeather = {};
+let historyLimit = 3;
 
 document.addEventListener("DOMContentLoaded", () => {
   getLocation();
@@ -174,21 +175,42 @@ function loadHistory() {
 
   const historyList = document.getElementById("historyList");
 
+  historyList.innerHTML = "";
+
   if (!history.length) {
-    historyList.innerHTML = "Belum ada aktivitas.";
+    historyList.innerHTML = "<p>Belum ada aktivitas.</p>";
 
     return;
   }
 
-  historyList.innerHTML = history
-    .map(
-      (item) => `
+  // tampilkan sesuai limit
+  const visibleHistory = history.slice(0, historyLimit);
+
+  visibleHistory.forEach((item) => {
+    historyList.innerHTML += `
       <div class="history-item">
         <strong>${item.activity}</strong><br>
         ${item.recommendation}<br>
         <small>${item.time}</small>
       </div>
-    `,
-    )
-    .join("");
+    `;
+  });
+
+  // tombol load more
+  if (history.length > historyLimit) {
+    historyList.innerHTML += `
+      <button
+        class="load-more-btn"
+        onclick="loadMoreHistory()"
+      >
+        Load More
+      </button>
+    `;
+  }
+}
+
+function loadMoreHistory() {
+  historyLimit += 3;
+
+  loadHistory();
 }
