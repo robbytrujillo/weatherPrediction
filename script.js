@@ -6,8 +6,13 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function getLocation() {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition((position) => {
+  if (!navigator.geolocation) {
+    alert("Browser tidak mendukung Geolocation");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
       const lat = position.coords.latitude;
       const lon = position.coords.longitude;
 
@@ -16,54 +21,105 @@ function getLocation() {
 
       fetchWeather(lat, lon);
       fetchLocationName(lat, lon);
-    });
-  }
+    },
+    (error) => {
+      console.log(error);
+      document.getElementById("location").innerText = "Gagal mengambil lokasi";
+    },
+  );
 }
 
 async function fetchWeather(lat, lon) {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&hourly=temperature_2m&forecast_days=1&timezone=auto`;
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&hourly=temperature_2m&forecast_days=1&timezone=auto`;
 
-  const response = await fetch(url);
-  const data = await response.json();
+    const response = await fetch(url);
+    const data = await response.json();
 
-  // const temp = data.current.temperature_2m;
-  const temp = Math.round(data.current.temperature_2m);
-  const code = data.current.weather_code;
-  const condition = getWeatherCondition(code);
+    // suhu sekarang
+    const temp = Math.round(data.current.temperature_2m);
 
-  currentWeather = { temp, condition };
+    // kode cuaca
+    const code = data.current.weather_code;
 
-  document.getElementById("temperature").innerText = `${temp}°C`;
-  document.getElementById("condition").innerText = condition;
+    // kondisi cuaca
+    const condition = getWeatherCondition(code);
 
-  const forecastGrid = document.getElementById("forecastGrid");
-  forecastGrid.innerHTML = "";
+    // simpan ke object global
+    currentWeather = { temp, condition };
 
-  for (let i = 1; i <= 3; i++) {
-    const hour = new Date(data.hourly.time[i]).getHours();
-    // const t = data.hourly.temperature_2m[i];
-    const t = Math.round(data.hourly.temperature_2m[i]);
+    // tampilkan suhu
+    document.getElementById("temperature").innerText = `${temp}°C`;
 
-    forecastGrid.innerHTML += `
-      <div class="forecast-item">
-        <strong>${hour}:00</strong><br>${t}°C
-      </div>
-    `;
+    // tampilkan kondisi
+    document.getElementById("condition").innerText = condition;
+
+    // forecast
+    const forecastGrid = document.getElementById("forecastGrid");
+
+    forecastGrid.innerHTML = "";
+
+    // jam sekarang
+    const now = new Date();
+    const currentHour = now.getHours();
+
+    // cari jam sekarang di API
+    let currentIndex = data.hourly.time.findIndex((time) => {
+      return new Date(time).getHours() === currentHour;
+    });
+
+    // fallback jika tidak ditemukan
+    if (currentIndex === -1) {
+      currentIndex = 0;
+    }
+
+    // tampilkan 3 jam ke depan
+    for (
+      let i = currentIndex;
+      i < currentIndex + 3 && i < data.hourly.time.length;
+      i++
+    ) {
+      const hour = new Date(data.hourly.time[i]).getHours();
+
+      const t = Math.round(data.hourly.temperature_2m[i]);
+
+      // label sekarang
+      const label = hour === currentHour ? "Sekarang" : `${hour}:00`;
+
+      forecastGrid.innerHTML += `
+        <div class="forecast-item">
+          <strong>${label}</strong><br>
+          ${t}°C
+        </div>
+      `;
+    }
+  } catch (error) {
+    console.log(error);
+
+    document.getElementById("condition").innerText =
+      "Gagal mengambil data cuaca";
   }
 }
 
 async function fetchLocationName(lat, lon) {
-  const response = await fetch(
-    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
-  );
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
+    );
 
-  const data = await response.json();
+    const data = await response.json();
 
-  document.getElementById("location").innerText =
-    data.address.city ||
-    data.address.town ||
-    data.address.village ||
-    "Lokasi Anda";
+    document.getElementById("location").innerText =
+      data.address.city ||
+      data.address.town ||
+      data.address.village ||
+      data.address.county ||
+      "Lokasi Anda";
+  } catch (error) {
+    console.log(error);
+
+    document.getElementById("location").innerText = "Lokasi tidak ditemukan";
+  }
 }
 
 function getWeatherCondition(code) {
@@ -76,16 +132,22 @@ function getWeatherCondition(code) {
 
 function checkRecommendation() {
   const activity = document.getElementById("activitySelect").value;
+
   const box = document.getElementById("recommendationBox");
 
   let message = "";
 
   if (currentWeather.condition.includes("Hujan")) {
-    message = `Cuaca sedang hujan. Sebaiknya tunda aktivitas ${activity} atau bawa payung.`;
+    message =
+      `Cuaca sedang hujan. Sebaiknya ` +
+      `tunda aktivitas ${activity} ` +
+      `atau bawa payung.`;
   } else if (currentWeather.temp > 32) {
-    message = `Cuaca panas (${currentWeather.temp}°C). Gunakan pelindung saat ${activity}.`;
+    message =
+      `Cuaca panas (${currentWeather.temp}°C). ` +
+      `Gunakan pelindung saat ${activity}.`;
   } else {
-    message = `Cuaca ${currentWeather.condition}. Aman untuk ${activity}.`;
+    message = `Cuaca ${currentWeather.condition}. ` + `Aman untuk ${activity}.`;
   }
 
   box.innerText = message;
@@ -109,10 +171,12 @@ function saveHistory(activity, recommendation) {
 
 function loadHistory() {
   const history = JSON.parse(localStorage.getItem("weatherHistory")) || [];
+
   const historyList = document.getElementById("historyList");
 
   if (!history.length) {
     historyList.innerHTML = "Belum ada aktivitas.";
+
     return;
   }
 
